@@ -1,7 +1,7 @@
-use std::ops::{Div, Mul};
+use std::cmp;
 use qrcode::QrCode;
-use image::{Luma, DynamicImage, Rgba, Pixel, ImageBuffer, RgbaImage};
-use ab_glyph::{Font, FontRef, point, Glyph, Point, ScaleFont, PxScale};
+use image::{Luma, DynamicImage, Rgba, ImageBuffer, RgbaImage};
+use ab_glyph::{Font, FontRef, point, ScaleFont, PxScale};
 
 use crate::lib;
 
@@ -25,7 +25,7 @@ fn draw_title(title: &str, width: f32) -> RgbaImage {
     };
 
     // create a new rgba image with some padding
-    let mut image = DynamicImage::new_rgba8(glyphs_width + 40, glyphs_height + 40).to_rgba8();
+    let mut image = DynamicImage::new_rgba8(glyphs_width + 40, glyphs_height + 20).to_rgba8();
 
     // loop through the glyphs in the text, positing each one on a line
     for glyph in glyphs {
@@ -69,7 +69,7 @@ fn draw_tag(tag: &str, width: f32) -> RgbaImage {
     };
 
     // create a new rgba image with some padding
-    let mut image = DynamicImage::new_rgba8(glyphs_width + 40, glyphs_height + 40).to_rgba8();
+    let mut image = DynamicImage::new_rgba8(glyphs_width + 40, glyphs_height + 20).to_rgba8();
 
     // loop through the glyphs in the text, positing each one on a line
     for glyph in glyphs {
@@ -146,7 +146,7 @@ pub fn generate_header(title: &str, tag: &str, width: u32) -> RgbaImage {
     let image_title = draw_title(title, title_width);
     let image_tag = draw_tag(tag, tag_width);
 
-    let height = image_title.height();
+    let height = cmp::max(image_title.height(), image_tag.height());
     let mut header = DynamicImage::new_rgba8(width, height).to_rgba8();
 
     for (x, y, source_pixel) in image_title.enumerate_pixels() {

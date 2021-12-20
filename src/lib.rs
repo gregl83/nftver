@@ -1,5 +1,5 @@
 use std::cmp;
-use ab_glyph::{Font, FontRef, point, Glyph, Point, ScaleFont, PxScale};
+use ab_glyph::{Font, point, Glyph, Point, ScaleFont};
 
 /// Simple paragraph layout for glyphs into `target`.
 ///
