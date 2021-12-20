@@ -65,12 +65,13 @@ fn main() {
     // resource link or pure hash
     // nftverH - hash
     // nftverN - name
+    // nftverT - tag
     // nftverD - description
-    // nftverT - time
 
     let mut base_uri = Url::parse("http://gregl83.com/").unwrap();
     let hash = paq::hash_source(".");
     let name = "nftver distinct name";
+    let tag = "v0.2.3";
 
     // generate qrcode text/uri
     let mut query_pairs = match base_uri.query_pairs() {
@@ -85,7 +86,7 @@ fn main() {
 
     let nft_width = body.width();
 
-    let header = nft::generate_header(name, nft_width);
+    let header = nft::generate_header(name, tag, nft_width);
     let footer = nft::generate_footer(hash.as_str(), nft_width);
 
     let nft_height = header.height() + body.height() + footer.height();
