@@ -1,7 +1,9 @@
 use std::cmp;
+use std::time::SystemTime;
 use qrcode::QrCode;
 use image::{Luma, DynamicImage, Rgba, ImageBuffer, RgbaImage};
 use ab_glyph::{Font, FontRef, point, ScaleFont, PxScale};
+use chrono::prelude::{DateTime, Utc};
 
 use crate::lib;
 
@@ -18,9 +20,9 @@ fn draw_title(title: &str, width: f32) -> RgbaImage {
     // work out the layout size
     let glyphs_height = scaled_font.height().ceil() as u32;
     let glyphs_width = {
-    let min_x = glyphs.first().unwrap().position.x;
-    let last_glyph = glyphs.last().unwrap();
-    let max_x = last_glyph.position.x + scaled_font.h_advance(last_glyph.id);
+        let min_x = glyphs.first().unwrap().position.x;
+        let last_glyph = glyphs.last().unwrap();
+        let max_x = last_glyph.position.x + scaled_font.h_advance(last_glyph.id);
         (max_x - min_x).ceil() as u32
     };
 
@@ -62,9 +64,9 @@ fn draw_tag(tag: &str, width: f32) -> RgbaImage {
     // work out the layout size
     let glyphs_height = scaled_font.height().ceil() as u32;
     let glyphs_width = {
-    let min_x = glyphs.first().unwrap().position.x;
-    let last_glyph = glyphs.last().unwrap();
-    let max_x = last_glyph.position.x + scaled_font.h_advance(last_glyph.id);
+        let min_x = glyphs.first().unwrap().position.x;
+        let last_glyph = glyphs.last().unwrap();
+        let max_x = last_glyph.position.x + scaled_font.h_advance(last_glyph.id);
         (max_x - min_x).ceil() as u32
     };
 
@@ -113,7 +115,54 @@ fn draw_description(description: &str, width: f32) -> RgbaImage {
     };
 
     // create a new rgba image with some padding
-    let mut image = DynamicImage::new_rgba8(glyphs_width + 40, glyphs_height).to_rgba8();
+    let mut image = DynamicImage::new_rgba8(glyphs_width + 40, glyphs_height + 20).to_rgba8();
+
+    // loop through the glyphs in the text, positing each one on a line
+    for glyph in glyphs {
+        if let Some(outlined) = scaled_font.outline_glyph(glyph) {
+            let bounds = outlined.px_bounds();
+            // Draw the glyph into the image per-pixel by using the draw closure
+            outlined.draw(|x, y, v| {
+                // Offset the position by the glyph bounding box
+                let px = image.get_pixel_mut(x + bounds.min.x as u32, y + bounds.min.y as u32);
+                // Turn the coverage into an alpha value (blended with any previous)
+                *px = Rgba([
+                    color.0,
+                    color.1,
+                    color.2,
+                    px.0[3].saturating_add((v * 255.0) as u8),
+                ]);
+            });
+        }
+    }
+
+    image
+}
+
+fn draw_timestamp(timestamp: SystemTime, width: f32) -> RgbaImage {
+    let font = FontRef::try_from_slice(include_bytes!("/usr/share/fonts/truetype/ubuntu/Ubuntu-C.ttf")).unwrap();
+    let color = (0, 0, 0);
+    let scale = PxScale::from(12.0); // font size
+    let scaled_font = font.as_scaled(scale);
+
+    let dt: DateTime<Utc> = timestamp.clone().into();
+    let text = format!("{}", dt.format("%+"));
+
+    // map title to glyphs
+    let mut glyphs = Vec::new();
+    lib::layout_paragraph(scaled_font, point(20.0, 0.0), width - 40.0, text.as_str(), &mut glyphs);
+
+    // work out the layout size
+    let glyphs_height = scaled_font.height().ceil() as u32;
+    let glyphs_width = {
+        let min_x = glyphs.first().unwrap().position.x;
+        let last_glyph = glyphs.last().unwrap();
+        let max_x = last_glyph.position.x + scaled_font.h_advance(last_glyph.id);
+        (max_x - min_x).ceil() as u32
+    };
+
+    // create a new rgba image with some padding
+    let mut image = DynamicImage::new_rgba8(glyphs_width + 40, glyphs_height + 10).to_rgba8();
 
     // loop through the glyphs in the text, positing each one on a line
     for glyph in glyphs {
@@ -140,12 +189,12 @@ fn draw_description(description: &str, width: f32) -> RgbaImage {
 fn draw_hash(hash: &str, width: f32) -> RgbaImage {
     let font = FontRef::try_from_slice(include_bytes!("/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf")).unwrap();
     let color = (0, 0, 0);
-    let scale = PxScale::from(12.0); // font size
+    let scale = PxScale::from(10.0); // font size
     let scaled_font = font.as_scaled(scale);
 
     // map title to glyphs
     let mut glyphs = Vec::new();
-    lib::layout_paragraph(scaled_font, point(20.0, 20.0), width - 40.0, hash, &mut glyphs);
+    lib::layout_paragraph(scaled_font, point(20.0, 2.0), width - 40.0, hash, &mut glyphs);
 
     // work out the layout size
     let glyphs_height = scaled_font.height().ceil() as u32;
@@ -157,7 +206,7 @@ fn draw_hash(hash: &str, width: f32) -> RgbaImage {
     };
 
     // create a new rgba image with some padding
-    let mut image = DynamicImage::new_rgba8(glyphs_width + 40, glyphs_height + 40).to_rgba8();
+    let mut image = DynamicImage::new_rgba8(glyphs_width + 40, glyphs_height + 10).to_rgba8();
 
     // loop through the glyphs in the text, positing each one on a line
     for glyph in glyphs {
@@ -216,18 +265,28 @@ pub fn generate_body(qrcode_text: &str) -> ImageBuffer<Luma<u8>, Vec<u8>> {
 pub fn generate_footer(hash: &str, description: &str, width: u32) -> RgbaImage {
     let width_float = width as f32;
     let image_description = draw_description(description, width_float);
+    let image_timestamp = draw_timestamp(SystemTime::now(), width_float);
     let image_hash = draw_hash(hash, width_float);
 
-    let height = image_description.height() + image_hash.height();
+    let height = image_description.height() + image_timestamp.height() + image_hash.height();
     let mut footer = DynamicImage::new_rgba8(width, height).to_rgba8();
+    let mut y_offset = 0;
 
     for (x, y, source_pixel) in image_description.enumerate_pixels() {
         let mut target_pixel = footer.get_pixel_mut(x, y);
         target_pixel.0 = lib::merge_rgba(source_pixel.0, target_pixel.0);
     }
+    y_offset += image_description.height();
 
-    let y_offset = image_description.height();
     for (x, y, source_pixel) in image_hash.enumerate_pixels() {
+        let y = y_offset + y;
+        let mut target_pixel = footer.get_pixel_mut(x, y);
+        target_pixel.0 = lib::merge_rgba(source_pixel.0, target_pixel.0);
+    }
+
+    let x_offset = width - image_timestamp.width();
+    for (x, y, source_pixel) in image_timestamp.enumerate_pixels() {
+        let x = x_offset + x;
         let y = y_offset + y;
         let mut target_pixel = footer.get_pixel_mut(x, y);
         target_pixel.0 = lib::merge_rgba(source_pixel.0, target_pixel.0);
