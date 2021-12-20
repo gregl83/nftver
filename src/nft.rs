@@ -8,7 +8,7 @@ use crate::lib;
 fn draw_title(title: &str, width: f32) -> RgbaImage {
     let font = FontRef::try_from_slice(include_bytes!("/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf")).unwrap();
     let color = (0, 0, 0);
-    let scale = PxScale::from(22.0); // font size
+    let scale = PxScale::from(30.0); // font size
     let scaled_font = font.as_scaled(scale);
 
     // map title to glyphs
@@ -52,7 +52,7 @@ fn draw_title(title: &str, width: f32) -> RgbaImage {
 fn draw_tag(tag: &str, width: f32) -> RgbaImage {
     let font = FontRef::try_from_slice(include_bytes!("/usr/share/fonts/truetype/ubuntu/Ubuntu-C.ttf")).unwrap();
     let color = (0, 0, 0);
-    let scale = PxScale::from(22.0); // font size
+    let scale = PxScale::from(30.0); // font size
     let scaled_font = font.as_scaled(scale);
 
     // map title to glyphs
@@ -96,7 +96,7 @@ fn draw_tag(tag: &str, width: f32) -> RgbaImage {
 fn draw_description(description: &str, width: f32) -> RgbaImage {
     let font = FontRef::try_from_slice(include_bytes!("/usr/share/fonts/truetype/ubuntu/Ubuntu-C.ttf")).unwrap();
     let color = (0, 0, 0);
-    let scale = PxScale::from(18.0); // font size
+    let scale = PxScale::from(24.0); // font size
     let scaled_font = font.as_scaled(scale);
 
     // map title to glyphs
