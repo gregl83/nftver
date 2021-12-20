@@ -15,6 +15,7 @@ fn main() {
     let mut base_uri = Url::parse("http://gregl83.com/").unwrap();
     let hash = paq::hash_source(".");
     let name = "nftver distinct name";
+    let description = "walk talk walk talk walk talk walk talk walk.";
     let tag = "v0.2.3";
 
     // generate qrcode text/uri
@@ -24,6 +25,8 @@ fn main() {
     };
     query_pairs.push((String::from("nftverH"), hash.clone()));
     query_pairs.push((String::from("nftverN"), String::from(name)));
+    query_pairs.push((String::from("nftverD"), String::from(description)));
+    query_pairs.push((String::from("nftverT"), String::from(tag)));
     base_uri.set_query_from_pairs(query_pairs);
 
     let body = nft::generate_body(base_uri.to_string().as_str());
@@ -31,7 +34,7 @@ fn main() {
     let nft_width = body.width();
 
     let header = nft::generate_header(name, tag, nft_width);
-    let footer = nft::generate_footer(hash.as_str(), nft_width);
+    let footer = nft::generate_footer(hash.as_str(), description, nft_width);
 
     let nft_height = header.height() + body.height() + footer.height();
     let mut nft = DynamicImage::new_rgba8(nft_width, nft_height).to_rgba8();
