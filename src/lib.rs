@@ -1,5 +1,6 @@
 use std::cmp;
 use ab_glyph::{Font, point, Glyph, Point, ScaleFont};
+use image::{DynamicImage, RgbaImage};
 
 /// Simple paragraph layout for glyphs into `target`.
 ///
@@ -42,6 +43,36 @@ pub fn layout_paragraph<F, SF>(
 
         target.push(glyph);
     }
+}
+
+// stack images into single canvas with background
+pub fn stack_images(stack: Vec<RgbaImage>, background_color: [u8; 4]) -> RgbaImage {
+    let mut canvas_width = 0;
+    let mut canvas_height = 0;
+
+    for image in &stack {
+        if image.width() > canvas_width {
+            canvas_width = image.width();
+        }
+        canvas_height += image.height();
+    }
+
+    let mut canvas = DynamicImage::new_rgba8(canvas_width, canvas_height).to_rgba8();
+    for pixel in canvas.pixels_mut() {
+        pixel.0 = background_color;
+    }
+
+    let mut y_offset = 0;
+    for image in &stack {
+        for (x, y, source_pixel) in image.enumerate_pixels() {
+            let y = y_offset + y;
+            let mut target_pixel = canvas.get_pixel_mut(x, y);
+            target_pixel.0 = merge_rgba(source_pixel.0, target_pixel.0);
+        }
+        y_offset += image.height();
+    }
+
+    canvas
 }
 
 // merges rgba pixels source onto target (has transparency)

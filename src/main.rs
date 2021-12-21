@@ -1,5 +1,5 @@
 use paq;
-use image::DynamicImage;
+use image::RgbaImage;
 use url::Url;
 
 mod lib;
@@ -18,6 +18,7 @@ fn main() {
     let name = "nftver distinct name";
     let description = "walk talk walk talk walk talk walk talk walk.";
     let tag = "v0.2.3";
+    let background_color = [255, 255, 255, 255];
 
     // generate qrcode text/uri
     let mut query_pairs = match base_uri.query_pairs() {
@@ -30,39 +31,16 @@ fn main() {
     query_pairs.push((String::from("nftverT"), String::from(tag)));
     base_uri.set_query_from_pairs(query_pairs);
 
-    let body = nft::generate_body(base_uri.to_string().as_str());
+    let mut image_stack: Vec<RgbaImage> = vec![];
 
+    let body = nft::generate_body(base_uri.to_string().as_str());
     let nft_width = body.width();
 
-    let header = nft::generate_header(name, tag, nft_width);
-    let footer = nft::generate_footer(hash.as_str(), public_key, description, nft_width);
+    image_stack.push(nft::generate_header(name, tag, nft_width));
+    image_stack.push(body);
+    image_stack.push(nft::generate_footer(hash.as_str(), public_key, description, nft_width));
 
-    let nft_height = header.height() + body.height() + footer.height();
-    let mut nft = DynamicImage::new_rgba8(nft_width, nft_height).to_rgba8();
-    for p in nft.pixels_mut() {
-        p.0 = [255, 255, 255, 255];
-    }
-
-    let mut nft_draw_y_offset = 0;
-
-    // draw nft
-    for (x, y, source_pixel) in header.enumerate_pixels() {
-        let y = nft_draw_y_offset + y;
-        let mut target_pixel = nft.get_pixel_mut(x, y);
-        target_pixel.0 = lib::merge_rgba(source_pixel.0, target_pixel.0);
-    }
-    nft_draw_y_offset += header.height();
-    for (x, y, source_pixel) in body.enumerate_pixels() {
-        let y = nft_draw_y_offset + y;
-        let mut target_pixel = nft.get_pixel_mut(x, y);
-        target_pixel.0 = lib::merge_rgba(source_pixel.0, target_pixel.0);
-    }
-    nft_draw_y_offset += body.height();
-    for (x, y, source_pixel) in footer.enumerate_pixels() {
-        let y = nft_draw_y_offset + y;
-        let mut target_pixel = nft.get_pixel_mut(x, y);
-        target_pixel.0 = lib::merge_rgba(source_pixel.0, target_pixel.0);
-    }
+    let nft = lib::stack_images(image_stack, background_color);
 
     // save image
     nft.save("./nft.png").unwrap();
