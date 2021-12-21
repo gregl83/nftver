@@ -1,6 +1,6 @@
 use std::cmp;
-use ab_glyph::{Font, point, Glyph, Point, ScaleFont};
-use image::{DynamicImage, RgbaImage};
+use ab_glyph::{Font, point, Glyph, Point, ScaleFont, PxScaleFont, FontRef};
+use image::{DynamicImage, RgbaImage, Rgba, Rgb};
 
 /// Simple paragraph layout for glyphs into `target`.
 ///
@@ -43,6 +43,77 @@ pub fn layout_paragraph<F, SF>(
 
         target.push(glyph);
     }
+}
+
+/// ImageMargin (top, right, bottom, left)
+pub struct ImageMargin(
+    pub f32,
+    pub f32,
+    pub f32,
+    pub f32
+);
+
+pub fn draw_glyphs(
+    text: &str,
+    scaled_font:
+    PxScaleFont<&FontRef>,
+    color: Rgb<u8>,
+    width: f32,
+    margin: ImageMargin
+) -> RgbaImage {
+    let top_margin = margin.0;
+    let right_margin = margin.1;
+    let bottom_margin = margin.2;
+    let left_margin = margin.3;
+
+    let horizontal_margin = right_margin + left_margin;
+    let vertical_margin = top_margin + bottom_margin;
+
+    // map text to glyphs
+    let mut glyphs = Vec::new();
+    layout_paragraph(
+        scaled_font,
+        point(left_margin, top_margin),
+        width - horizontal_margin,
+        text,
+        &mut glyphs
+    );
+
+    // work out the layout size
+    let glyphs_height = scaled_font.height().ceil() as u32;
+    let glyphs_width = {
+        let min_x = glyphs.first().unwrap().position.x;
+        let last_glyph = glyphs.last().unwrap();
+        let max_x = last_glyph.position.x + scaled_font.h_advance(last_glyph.id);
+        (max_x - min_x).ceil() as u32
+    };
+
+    // create a new rgba image with some padding
+    let mut image = DynamicImage::new_rgba8(
+        glyphs_width + (horizontal_margin as u32),
+        glyphs_height + (vertical_margin as u32)
+    ).to_rgba8();
+
+    // loop through the glyphs in the text, positing each one on a line
+    for glyph in glyphs {
+        if let Some(outlined) = scaled_font.outline_glyph(glyph) {
+            let bounds = outlined.px_bounds();
+            // draw the glyph into the image per-pixel by using the draw closure
+            outlined.draw(|x, y, v| {
+                // offset the position by the glyph bounding box
+                let px = image.get_pixel_mut(x + bounds.min.x as u32, y + bounds.min.y as u32);
+                // turn the coverage into an alpha value (blended with any previous)
+                *px = Rgba([
+                    color.0[0],
+                    color.0[1],
+                    color.0[2],
+                    px.0[3].saturating_add((v * 255.0) as u8),
+                ]);
+            });
+        }
+    }
+
+    image
 }
 
 // stack images into single canvas with background

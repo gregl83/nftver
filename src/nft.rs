@@ -1,277 +1,67 @@
 use std::cmp;
 use std::time::SystemTime;
 use qrcode::QrCode;
-use image::{Luma, DynamicImage, Rgba, RgbaImage, Pixel};
-use ab_glyph::{Font, FontRef, point, ScaleFont, PxScale};
+use image::{Luma, DynamicImage, RgbaImage, Pixel, Rgb};
+use ab_glyph::{Font, FontRef, PxScale};
 use chrono::prelude::{DateTime, Utc};
 
 use crate::lib;
 
 fn draw_title(title: &str, width: f32) -> RgbaImage {
     let font = FontRef::try_from_slice(include_bytes!("/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf")).unwrap();
-    let color = (0, 0, 0);
+    let color = Rgb::<u8>::from([0, 0, 0]);
     let scale = PxScale::from(30.0); // font size
     let scaled_font = font.as_scaled(scale);
 
-    // map title to glyphs
-    let mut glyphs = Vec::new();
-    lib::layout_paragraph(scaled_font, point(20.0, 20.0), width - 40.0, title, &mut glyphs);
-
-    // work out the layout size
-    let glyphs_height = scaled_font.height().ceil() as u32;
-    let glyphs_width = {
-        let min_x = glyphs.first().unwrap().position.x;
-        let last_glyph = glyphs.last().unwrap();
-        let max_x = last_glyph.position.x + scaled_font.h_advance(last_glyph.id);
-        (max_x - min_x).ceil() as u32
-    };
-
-    // create a new rgba image with some padding
-    let mut image = DynamicImage::new_rgba8(glyphs_width + 40, glyphs_height + 20).to_rgba8();
-
-    // loop through the glyphs in the text, positing each one on a line
-    for glyph in glyphs {
-        if let Some(outlined) = scaled_font.outline_glyph(glyph) {
-            let bounds = outlined.px_bounds();
-            // draw the glyph into the image per-pixel by using the draw closure
-            outlined.draw(|x, y, v| {
-                // offset the position by the glyph bounding box
-                let px = image.get_pixel_mut(x + bounds.min.x as u32, y + bounds.min.y as u32);
-                // turn the coverage into an alpha value (blended with any previous)
-                *px = Rgba([
-                    color.0,
-                    color.1,
-                    color.2,
-                    px.0[3].saturating_add((v * 255.0) as u8),
-                ]);
-            });
-        }
-    }
-
-    image
+    lib::draw_glyphs(title, scaled_font, color, width, lib::ImageMargin(20.0, 20.0, 0.0, 20.0))
 }
 
 fn draw_tag(tag: &str, width: f32) -> RgbaImage {
     let font = FontRef::try_from_slice(include_bytes!("/usr/share/fonts/truetype/ubuntu/Ubuntu-C.ttf")).unwrap();
-    let color = (0, 0, 0);
+    let color = Rgb::<u8>::from([0, 0, 0]);
     let scale = PxScale::from(30.0); // font size
     let scaled_font = font.as_scaled(scale);
 
-    // map title to glyphs
-    let mut glyphs = Vec::new();
-    lib::layout_paragraph(scaled_font, point(20.0, 20.0), width - 40.0, tag, &mut glyphs);
-
-    // work out the layout size
-    let glyphs_height = scaled_font.height().ceil() as u32;
-    let glyphs_width = {
-        let min_x = glyphs.first().unwrap().position.x;
-        let last_glyph = glyphs.last().unwrap();
-        let max_x = last_glyph.position.x + scaled_font.h_advance(last_glyph.id);
-        (max_x - min_x).ceil() as u32
-    };
-
-    // create a new rgba image with some padding
-    let mut image = DynamicImage::new_rgba8(glyphs_width + 40, glyphs_height + 20).to_rgba8();
-
-    // loop through the glyphs in the text, positing each one on a line
-    for glyph in glyphs {
-        if let Some(outlined) = scaled_font.outline_glyph(glyph) {
-            let bounds = outlined.px_bounds();
-            // draw the glyph into the image per-pixel by using the draw closure
-            outlined.draw(|x, y, v| {
-                // offset the position by the glyph bounding box
-                let px = image.get_pixel_mut(x + bounds.min.x as u32, y + bounds.min.y as u32);
-                // turn the coverage into an alpha value (blended with any previous)
-                *px = Rgba([
-                    color.0,
-                    color.1,
-                    color.2,
-                    px.0[3].saturating_add((v * 255.0) as u8),
-                ]);
-            });
-        }
-    }
-
-    image
+    lib::draw_glyphs(tag, scaled_font, color, width, lib::ImageMargin(20.0, 20.0, 0.0, 20.0))
 }
 
 fn draw_description(description: &str, width: f32) -> RgbaImage {
     let font = FontRef::try_from_slice(include_bytes!("/usr/share/fonts/truetype/ubuntu/Ubuntu-C.ttf")).unwrap();
-    let color = (0, 0, 0);
+    let color = Rgb::<u8>::from([0, 0, 0]);
     let scale = PxScale::from(24.0); // font size
     let scaled_font = font.as_scaled(scale);
 
-    // map title to glyphs
-    let mut glyphs = Vec::new();
-    lib::layout_paragraph(scaled_font, point(20.0, 20.0), width - 40.0, description, &mut glyphs);
-
-    // work out the layout size
-    let glyphs_height = scaled_font.height().ceil() as u32;
-    let glyphs_width = {
-        let min_x = glyphs.first().unwrap().position.x;
-        let last_glyph = glyphs.last().unwrap();
-        let max_x = last_glyph.position.x + scaled_font.h_advance(last_glyph.id);
-        (max_x - min_x).ceil() as u32
-    };
-
-    // create a new rgba image with some padding
-    let mut image = DynamicImage::new_rgba8(glyphs_width + 40, glyphs_height + 40).to_rgba8();
-
-    // loop through the glyphs in the text, positing each one on a line
-    for glyph in glyphs {
-        if let Some(outlined) = scaled_font.outline_glyph(glyph) {
-            let bounds = outlined.px_bounds();
-            // Draw the glyph into the image per-pixel by using the draw closure
-            outlined.draw(|x, y, v| {
-                // Offset the position by the glyph bounding box
-                let px = image.get_pixel_mut(x + bounds.min.x as u32, y + bounds.min.y as u32);
-                // Turn the coverage into an alpha value (blended with any previous)
-                *px = Rgba([
-                    color.0,
-                    color.1,
-                    color.2,
-                    px.0[3].saturating_add((v * 255.0) as u8),
-                ]);
-            });
-        }
-    }
-
-    image
+    lib::draw_glyphs(description, scaled_font, color, width, lib::ImageMargin(20.0, 20.0, 20.0, 20.0))
 }
 
 fn draw_timestamp(timestamp: SystemTime, width: f32) -> RgbaImage {
     let font = FontRef::try_from_slice(include_bytes!("/usr/share/fonts/truetype/ubuntu/Ubuntu-C.ttf")).unwrap();
-    let color = (0, 0, 0);
+    let color = Rgb::<u8>::from([0, 0, 0]);
     let scale = PxScale::from(12.0); // font size
     let scaled_font = font.as_scaled(scale);
 
     let dt: DateTime<Utc> = timestamp.clone().into();
     let text = format!("{}", dt.format("%+"));
 
-    // map title to glyphs
-    let mut glyphs = Vec::new();
-    lib::layout_paragraph(scaled_font, point(20.0, 0.0), width - 40.0, text.as_str(), &mut glyphs);
-
-    // work out the layout size
-    let glyphs_height = scaled_font.height().ceil() as u32;
-    let glyphs_width = {
-        let min_x = glyphs.first().unwrap().position.x;
-        let last_glyph = glyphs.last().unwrap();
-        let max_x = last_glyph.position.x + scaled_font.h_advance(last_glyph.id);
-        (max_x - min_x).ceil() as u32
-    };
-
-    // create a new rgba image with some padding
-    let mut image = DynamicImage::new_rgba8(glyphs_width + 40, glyphs_height + 10).to_rgba8();
-
-    // loop through the glyphs in the text, positing each one on a line
-    for glyph in glyphs {
-        if let Some(outlined) = scaled_font.outline_glyph(glyph) {
-            let bounds = outlined.px_bounds();
-            // Draw the glyph into the image per-pixel by using the draw closure
-            outlined.draw(|x, y, v| {
-                // Offset the position by the glyph bounding box
-                let px = image.get_pixel_mut(x + bounds.min.x as u32, y + bounds.min.y as u32);
-                // Turn the coverage into an alpha value (blended with any previous)
-                *px = Rgba([
-                    color.0,
-                    color.1,
-                    color.2,
-                    px.0[3].saturating_add((v * 255.0) as u8),
-                ]);
-            });
-        }
-    }
-
-    image
+    lib::draw_glyphs(text.as_str(), scaled_font, color, width, lib::ImageMargin(0.0, 20.0, 10.0, 20.0))
 }
 
-fn draw_public_key(hash: &str, width: f32) -> RgbaImage {
+fn draw_public_key(public_key: &str, width: f32) -> RgbaImage {
     let font = FontRef::try_from_slice(include_bytes!("/usr/share/fonts/truetype/ubuntu/Ubuntu-C.ttf")).unwrap();
-    let color = (0, 0, 0);
+    let color = Rgb::<u8>::from([0, 0, 0]);
     let scale = PxScale::from(12.0); // font size
     let scaled_font = font.as_scaled(scale);
 
-    // map title to glyphs
-    let mut glyphs = Vec::new();
-    lib::layout_paragraph(scaled_font, point(20.0, 0.0), width - 40.0, hash, &mut glyphs);
-
-    // work out the layout size
-    let glyphs_height = scaled_font.height().ceil() as u32;
-    let glyphs_width = {
-        let min_x = glyphs.first().unwrap().position.x;
-        let last_glyph = glyphs.last().unwrap();
-        let max_x = last_glyph.position.x + scaled_font.h_advance(last_glyph.id);
-        (max_x - min_x).ceil() as u32
-    };
-
-    // create a new rgba image with some padding
-    let mut image = DynamicImage::new_rgba8(glyphs_width + 40, glyphs_height).to_rgba8();
-
-    // loop through the glyphs in the text, positing each one on a line
-    for glyph in glyphs {
-        if let Some(outlined) = scaled_font.outline_glyph(glyph) {
-            let bounds = outlined.px_bounds();
-            // Draw the glyph into the image per-pixel by using the draw closure
-            outlined.draw(|x, y, v| {
-                // Offset the position by the glyph bounding box
-                let px = image.get_pixel_mut(x + bounds.min.x as u32, y + bounds.min.y as u32);
-                // Turn the coverage into an alpha value (blended with any previous)
-                *px = Rgba([
-                    color.0,
-                    color.1,
-                    color.2,
-                    px.0[3].saturating_add((v * 255.0) as u8),
-                ]);
-            });
-        }
-    }
-
-    image
+    lib::draw_glyphs(public_key, scaled_font, color, width, lib::ImageMargin(0.0, 20.0, 0.0, 20.0))
 }
 
 fn draw_hash(hash: &str, width: f32) -> RgbaImage {
     let font = FontRef::try_from_slice(include_bytes!("/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf")).unwrap();
-    let color = (0, 0, 0);
+    let color = Rgb::<u8>::from([0, 0, 0]);
     let scale = PxScale::from(10.0); // font size
     let scaled_font = font.as_scaled(scale);
 
-    // map title to glyphs
-    let mut glyphs = Vec::new();
-    lib::layout_paragraph(scaled_font, point(20.0, 2.0), width - 40.0, hash, &mut glyphs);
-
-    // work out the layout size
-    let glyphs_height = scaled_font.height().ceil() as u32;
-    let glyphs_width = {
-        let min_x = glyphs.first().unwrap().position.x;
-        let last_glyph = glyphs.last().unwrap();
-        let max_x = last_glyph.position.x + scaled_font.h_advance(last_glyph.id);
-        (max_x - min_x).ceil() as u32
-    };
-
-    // create a new rgba image with some padding
-    let mut image = DynamicImage::new_rgba8(glyphs_width + 40, glyphs_height + 10).to_rgba8();
-
-    // loop through the glyphs in the text, positing each one on a line
-    for glyph in glyphs {
-        if let Some(outlined) = scaled_font.outline_glyph(glyph) {
-            let bounds = outlined.px_bounds();
-            // Draw the glyph into the image per-pixel by using the draw closure
-            outlined.draw(|x, y, v| {
-                // Offset the position by the glyph bounding box
-                let px = image.get_pixel_mut(x + bounds.min.x as u32, y + bounds.min.y as u32);
-                // Turn the coverage into an alpha value (blended with any previous)
-                *px = Rgba([
-                    color.0,
-                    color.1,
-                    color.2,
-                    px.0[3].saturating_add((v * 255.0) as u8),
-                ]);
-            });
-        }
-    }
-
-    image
+    lib::draw_glyphs(hash, scaled_font, color, width, lib::ImageMargin(2.0, 20.0, 10.0, 20.0))
 }
 
 pub fn generate_header(title: &str, tag: &str, width: u32) -> RgbaImage {
