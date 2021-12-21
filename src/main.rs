@@ -1,5 +1,5 @@
 use paq;
-use image::{DynamicImage, Pixel};
+use image::DynamicImage;
 use url::Url;
 
 mod lib;
@@ -13,6 +13,7 @@ fn main() {
     // nftverD - description
 
     let mut base_uri = Url::parse("http://gregl83.com/").unwrap();
+    let public_key = "0x9e2f0699293fdfCB9D774Dd27F4A68E1C7007946";
     let hash = paq::hash_source(".");
     let name = "nftver distinct name";
     let description = "walk talk walk talk walk talk walk talk walk.";
@@ -34,7 +35,7 @@ fn main() {
     let nft_width = body.width();
 
     let header = nft::generate_header(name, tag, nft_width);
-    let footer = nft::generate_footer(hash.as_str(), description, nft_width);
+    let footer = nft::generate_footer(hash.as_str(), public_key, description, nft_width);
 
     let nft_height = header.height() + body.height() + footer.height();
     let mut nft = DynamicImage::new_rgba8(nft_width, nft_height).to_rgba8();
@@ -51,8 +52,7 @@ fn main() {
         target_pixel.0 = lib::merge_rgba(source_pixel.0, target_pixel.0);
     }
     nft_draw_y_offset += header.height();
-    for (x, y, source_pixel_luma) in body.enumerate_pixels() {
-        let source_pixel = source_pixel_luma.to_rgba();
+    for (x, y, source_pixel) in body.enumerate_pixels() {
         let y = nft_draw_y_offset + y;
         let mut target_pixel = nft.get_pixel_mut(x, y);
         target_pixel.0 = lib::merge_rgba(source_pixel.0, target_pixel.0);
