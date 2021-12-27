@@ -15,18 +15,24 @@ pub fn layout_paragraph<F, SF>(
     F: Font,
     SF: ScaleFont<F>,
 {
-    let v_advance = font.height() + font.line_gap();
+    // amount to advance for a given vertical newline
+    let line_height = font.height() + font.line_gap();
+
+    // get current position / caret (tracks horizontal and vertical offset)
     let mut caret = position + point(0.0, font.ascent());
+
     let mut last_glyph: Option<Glyph> = None;
     for c in text.chars() {
         if c.is_control() {
             if c == '\n' {
-                caret = point(position.x, caret.y + v_advance);
+                caret = point(position.x, caret.y + line_height);
                 last_glyph = None;
             }
             continue;
         }
+
         let mut glyph = font.scaled_glyph(c);
+        // set caret padding between previous and next glyph (kern)
         if let Some(previous) = last_glyph.take() {
             caret.x += font.kern(previous.id, glyph.id);
         }
@@ -35,8 +41,8 @@ pub fn layout_paragraph<F, SF>(
         last_glyph = Some(glyph.clone());
         caret.x += font.h_advance(glyph.id);
 
-        if !c.is_whitespace() && caret.x > position.x + max_width {
-            caret = point(position.x, caret.y + v_advance);
+        if caret.x > position.x + max_width {
+            caret = point(position.x, caret.y + line_height);
             glyph.position = caret;
             last_glyph = None;
         }
@@ -58,7 +64,7 @@ pub fn draw_glyphs(
     scaled_font:
     PxScaleFont<&FontRef>,
     color: Rgb<u8>,
-    width: f32,
+    max_width: f32,
     margin: ImageMargin
 ) -> RgbaImage {
     let top_margin = margin.0;
@@ -66,32 +72,34 @@ pub fn draw_glyphs(
     let bottom_margin = margin.2;
     let left_margin = margin.3;
 
-    let horizontal_margin = right_margin + left_margin;
-    let vertical_margin = top_margin + bottom_margin;
-
     // map text to glyphs
     let mut glyphs = Vec::new();
     layout_paragraph(
         scaled_font,
         point(left_margin, top_margin),
-        width - horizontal_margin,
+        max_width - left_margin - right_margin,
         text,
         &mut glyphs
     );
 
-    // work out the layout size
-    let glyphs_height = scaled_font.height().ceil() as u32;
-    let glyphs_width = {
-        let min_x = glyphs.first().unwrap().position.x;
-        let last_glyph = glyphs.last().unwrap();
-        let max_x = last_glyph.position.x + scaled_font.h_advance(last_glyph.id);
-        (max_x - min_x).ceil() as u32
-    };
+    let mut glyphs_width: f32 = 0.0;
+    let mut glyphs_height: f32 = 0.0;
+    for glyph in glyphs.clone() {
+        if let Some(outlined) = scaled_font.outline_glyph(glyph) {
+            let bounds = outlined.px_bounds();
+            if bounds.max.x > glyphs_width {
+                glyphs_width = bounds.max.x.clone();
+            }
+            if bounds.max.y > glyphs_height {
+                glyphs_height = bounds.max.y.clone();
+            }
+        }
+    }
 
     // create a new rgba image with some padding
     let mut image = DynamicImage::new_rgba8(
-        glyphs_width + (horizontal_margin as u32),
-        glyphs_height + (vertical_margin as u32)
+        (glyphs_width + right_margin) as u32,
+        (glyphs_height + bottom_margin) as u32
     ).to_rgba8();
 
     // loop through the glyphs in the text, positing each one on a line
