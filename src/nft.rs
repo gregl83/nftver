@@ -31,7 +31,7 @@ fn draw_description(description: &str, width: f32) -> RgbaImage {
     let scale = PxScale::from(24.0); // font size
     let scaled_font = font.as_scaled(scale);
 
-    lib::draw_glyphs(description, scaled_font, color, width, lib::ImageMargin(20.0, 20.0, 20.0, 20.0))
+    lib::draw_glyphs(description, scaled_font, color, width, lib::ImageMargin(20.0, 40.0, 20.0, 40.0))
 }
 
 fn draw_timestamp(timestamp: SystemTime, width: f32) -> RgbaImage {

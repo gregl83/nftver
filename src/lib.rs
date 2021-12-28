@@ -31,8 +31,20 @@ pub fn layout_paragraph<F, SF>(
         src.clear();
     }
 
-    let mut last_glyph: Option<Glyph> = None;
+    let mut text_replaced = String::new();
     for c in text.chars() {
+        if c == '\t' {
+            text_replaced.push(' ');
+            text_replaced.push(' ');
+            text_replaced.push(' ');
+            text_replaced.push(' ');
+        } else {
+            text_replaced.push(c);
+        }
+    }
+
+    let mut last_glyph: Option<Glyph> = None;
+    for c in text_replaced.chars() {
         if c.is_control() {
             if c == '\n' {
                 append_glyphs(&mut buffer, target);
