@@ -15,16 +15,27 @@ pub fn layout_paragraph<F, SF>(
     F: Font,
     SF: ScaleFont<F>,
 {
+    let word_break = ' ';
+
     // amount to advance for a given vertical newline
     let line_height = font.height() + font.line_gap();
 
     // get current position / caret (tracks horizontal and vertical offset)
     let mut caret = position + point(0.0, font.ascent());
+    let mut buffer: Vec<Glyph> = vec![];
+
+    fn append_glyphs(src: &mut Vec<Glyph>, dest: &mut Vec<Glyph>) {
+        for glyph in src.clone() {
+            dest.push(glyph.clone());
+        }
+        src.clear();
+    }
 
     let mut last_glyph: Option<Glyph> = None;
     for c in text.chars() {
         if c.is_control() {
             if c == '\n' {
+                append_glyphs(&mut buffer, target);
                 caret = point(position.x, caret.y + line_height);
                 last_glyph = None;
             }
@@ -42,13 +53,36 @@ pub fn layout_paragraph<F, SF>(
         caret.x += font.h_advance(glyph.id);
 
         if caret.x > position.x + max_width {
-            caret = point(position.x, caret.y + line_height);
-            glyph.position = caret;
+            // skip if word break would start newline
+            if c != word_break {
+                buffer.push(glyph);
+            }
+
+            // reposition glyphs in buffer for newline
+            let x_correction = buffer[0].position.x - position.x;
+            let buffer_width = caret.x - x_correction;
+            for b in buffer.iter_mut() {
+                b.position.x = b.position.x - x_correction;
+                b.position.y = b.position.y + line_height;
+            }
+
+            // reposition caret for newline
+            caret = point(buffer_width, caret.y + line_height);
             last_glyph = None;
+
+            append_glyphs(&mut buffer, target);
+            continue;
+        } else {
+            buffer.push(glyph);
         }
 
-        target.push(glyph);
+        if c == word_break {
+            append_glyphs(&mut buffer, target);
+            continue;
+        }
     }
+
+    append_glyphs(&mut buffer, target);
 }
 
 /// ImageMargin (top, right, bottom, left)

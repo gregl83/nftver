@@ -16,7 +16,7 @@ fn main() {
     let public_key = "0x9e2f0699293fdfCB9D774Dd27F4A68E1C7007946";
     let hash = paq::hash_source(".");
     let name = "nftver distinct name";
-    let description = "walk talk walk talk walk talk walk talk walk. walk talk walk talk walk talk walk talk walk. walk talk walk talk walk talk walk talk walk. walk talk walk talk walk talk walk talk walk.";
+    let description = "one two three four five six seven eight nine. ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen.";
     let tag = "v0.2.3";
     let background_color = [255, 255, 255, 255];
 
