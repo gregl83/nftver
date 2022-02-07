@@ -1,3 +1,4 @@
+use clap::{App, Arg};
 use paq;
 use image::RgbaImage;
 use url::Url;
@@ -5,7 +6,7 @@ use url::Url;
 mod lib;
 mod nft;
 
-fn main() {
+fn generate() {
     // resource link or pure hash
     // nftverH - hash
     // nftverN - name
@@ -44,4 +45,15 @@ fn main() {
 
     // save image
     nft.save("./nft.png").unwrap();
+}
+
+fn main() {
+    // todo - add error handling with messaging
+
+    let matches = App::new("nftver")
+        .version("0.1.0")
+        .about("Generate software version NFT.")
+        .get_matches();
+
+    generate();
 }
